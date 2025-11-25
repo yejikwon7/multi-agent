@@ -1,4 +1,3 @@
-# agents/parking_agent.py
 from crewai import Agent
 from config import worker_llm
 
@@ -21,7 +20,7 @@ def create_parking_agent(parking_tools):
         ),
         backstory=description,
         llm=worker_llm,
-        tools=parking_tools,
+        tools=[],
         verbose=True,
         allow_delegation=False,
     )

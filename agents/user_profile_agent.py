@@ -1,4 +1,3 @@
-# agents/user_profile_agent.py
 from crewai import Agent
 from config import worker_llm
 

@@ -5,7 +5,7 @@ from config import worker_llm
 from tools.tmap_tool import TmapTrafficTool
 
 
-def create_notification_agent() -> Agent:
+def create_notification_agent(transport_tools) -> Agent:
     """
     4번 에이전트: 출국 알림 에이전트
 
@@ -23,7 +23,10 @@ def create_notification_agent() -> Agent:
       이 파일에서는 Tmap API만 Tool로 연결한다.
     """
     # Tmap 교통 정보 조회용 Tool 인스턴스 생성
-    tmap_tool = TmapTrafficTool()
+    tools = list(transport_tools) if transport_tools else []
+
+    # ✅ 로컬 Tmap 툴 명시적으로 추가
+    tools.append(TmapTrafficTool())
 
     return Agent(
         role="출국 알림 에이전트",
@@ -43,7 +46,8 @@ def create_notification_agent() -> Agent:
             "충실히 반영해야 하며, Tmap 교통 정보를 활용해 현실적인 이동 시간을 추정한다."
         ),
         llm=worker_llm,
-        tools=[tmap_tool],   # 외부 API 호출은 TmapTool이 담당, 나머지는 Task context로 전달
+        tools=tools,
         verbose=True,
         allow_delegation=False,
+        memory=True,
     )

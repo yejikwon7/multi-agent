@@ -20,7 +20,8 @@ def create_parking_agent(parking_tools):
         ),
         backstory=description,
         llm=worker_llm,
-        tools=[],
+        tools=parking_tools,
         verbose=True,
         allow_delegation=False,
+        memory=True,
     )

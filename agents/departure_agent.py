@@ -20,7 +20,8 @@ def create_departure_agent(departure_tools):
             "실시간 혼잡도, 대기 시간, 터미널/출국장 위치를 종합해 최적의 출국 루트를 제안한다."
         ),
         llm=worker_llm,
-        tools=[],
+        tools=departure_tools,
         verbose=True,
         allow_delegation=False,
+        memory=True,
     )

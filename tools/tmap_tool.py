@@ -15,7 +15,10 @@ class TmapTrafficToolInput(BaseModel):
         ...,
         description="출발지 전체 주소 또는 동 단위까지 (예: '서울시 서대문구 연희동')"
     )
-    # 출발 시각은 선택 – 없으면 '현재 시각'으로 처리 (현재는 API에 직접 반영하진 않고 로깅/설명용)
+    terminal: Optional[str] = Field(
+        "T1",
+        description="도착 터미널 (T1 또는 T2). 기본값 T1."
+    )
     departure_time: Optional[str] = Field(
         None,
         description="출발 예정 시각 (예: '2025-11-30 07:30', YYYY-MM-DD HH:MM 형식, 미입력 시 현재 시각)"
@@ -79,16 +82,19 @@ class TmapTrafficTool(BaseTool):
     def _run(
         self,
         origin_address: str,
+        terminal: Optional[str] = "T1",  # ← 이 줄 추가
         departure_time: Optional[str] = None,
     ) -> Dict[str, Any]:
 
         api_key = os.getenv("TMAP_API_KEY")
-        # 0) API 키 체크 – 더 이상 mock 응답 없음. 실시간 교통을 반드시 시도.
+        # 0) API 키 체크
         if not api_key:
             return {
                 "status": "error",
                 "message": "TMAP_API_KEY가 설정되어 있지 않습니다. .env에 TMAP_API_KEY를 설정해 주세요.",
             }
+
+        terminal = (terminal or "T1").upper()
 
         # 출발지 주소 정리
         origin_norm = self._normalize_address(origin_address)
@@ -144,9 +150,12 @@ class TmapTrafficTool(BaseTool):
                 }
 
             # 2) 인천공항 좌표 (WGS84 lon/lat)
-            #    공식 좌표를 사용 – 필요하면 정확히 조정 가능
-            endX = 126.4505
-            endY = 37.4602
+            if terminal == "T2":
+                endX = 126.4524
+                endY = 37.4690
+            else:  # 기본 T1
+                endX = 126.4505
+                endY = 37.4602
 
             # 3) 자동차 경로 안내 호출 (실시간 교통 반영)
             #    문서 예시: https://apis.openapi.sk.com/tmap/tmap/routes?version=1
@@ -222,10 +231,17 @@ class TmapTrafficTool(BaseTool):
             eta_minutes = round(float(total_time_sec) / 60)
             distance_km = round(float(total_dist_m) / 1000, 1)
 
-            traffic_summary = (
-                f"실시간 교통을 반영한 예상 소요 시간은 약 {eta_minutes}분, "
-                f"이동 거리는 약 {distance_km}km입니다."
-            )
+            if parsed_departure:
+                human_time = parsed_departure.strftime("%Y-%m-%d %H:%M")
+                traffic_summary = (
+                    f"{human_time} 기준, 실시간 교통을 반영한 예상 소요 시간은 약 {eta_minutes}분, "
+                    f"이동 거리는 약 {distance_km}km입니다."
+                )
+            else:
+                traffic_summary = (
+                    f"현재 시각 기준, 실시간 교통을 반영한 예상 소요 시간은 약 {eta_minutes}분, "
+                    f"이동 거리는 약 {distance_km}km입니다."
+                )
 
             # 필요하면 departure_time/현재 시각을 반영한 부가 설명도 붙일 수 있음
             return {

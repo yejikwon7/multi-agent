@@ -23,3 +23,11 @@ manager_llm = LLM(
     api_key=GOOGLE_API_KEY,
     provider="google"
 )
+
+AWS_REGION = os.getenv("AWS_REGION")
+LAMBDA_ARN = os.getenv("LAMBDA_ARN")
+SCHEDULER_ROLE_ARN = os.getenv("SCHEDULER_ROLE_ARN")
+AWS_SES_SENDER = os.getenv("AWS_SES_SENDER")
+ENABLE_AWS_SCHEDULER = os.getenv("ENABLE_AWS_SCHEDULER")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")

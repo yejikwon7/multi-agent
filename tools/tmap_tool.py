@@ -7,29 +7,35 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-TMAP_API_KEY = os.getenv("TMAP_API_KEY")
+# TMAP_API_KEY = os.getenv("TMAP_API_KEY")
+
 
 class TmapTrafficToolInput(BaseModel):
     origin_address: str = Field(
         ...,
         description="출발지 전체 주소 또는 동 단위까지 (예: '서울시 서대문구 연희동')"
     )
-    # 출발 시각은 선택 – 없으면 '현재 시각'으로 처리
+    terminal: Optional[str] = Field(
+        "T1",
+        description="도착 터미널 (T1 또는 T2). 기본값 T1."
+    )
     departure_time: Optional[str] = Field(
         None,
         description="출발 예정 시각 (예: '2025-11-30 07:30', YYYY-MM-DD HH:MM 형식, 미입력 시 현재 시각)"
     )
 
+
 class TmapTrafficTool(BaseTool):
     """
-    집 → 인천공항 구간의 교통량/예상 소요 시간 등을 조회하는 툴 (스켈레톤).
-    실제 엔드포인트/파라미터는 Tmap 문서 보고 채우면 됨.
+    집 → 인천공항 구간의 교통량/예상 소요 시간 등을 조회하는 툴.
+    - Tmap 지오코딩(fullAddrGeo)로 출발지 주소를 좌표로 변환
+    - 자동차 경로안내(/tmap/routes)로 실시간 교통정보(trafficInfo=Y)를 반영한 경로/시간 조회
     """
     name: str = "tmap_traffic"
     description: str = (
-        "사용자의 출발지(집)에서 인천공항까지의 교통량과 예상 소요시간을 조회한다. "
+        "사용자의 출발지(집)에서 인천국제공항까지의 실시간 교통을 반영한 예상 소요시간과 거리를 조회한다. "
         "입력: origin_address, departure_time(YYYY-MM-DD HH:MM 형식 권장). "
-        "출력: 예상 이동 시간, 거리, 주요 교통상황 요약."
+        "출력: 예상 이동 시간(분), 거리(km), 실시간 교통을 반영한 요약 설명."
     )
 
     args_schema: Type[TmapTrafficToolInput] = TmapTrafficToolInput
@@ -56,80 +62,208 @@ class TmapTrafficTool(BaseTool):
 
         return text
 
+    def _safe_float(self, d: Dict[str, Any], *keys: str) -> Optional[float]:
+        """
+        coord_info 같은 dict에서 newLon/newLat, lon/lat 등 여러 후보 키를 차례대로 시도.
+        값이 빈 문자열이거나 숫자로 변환 안 되면 다음 키로 넘어감.
+        """
+        for key in keys:
+            if key not in d:
+                continue
+            v = d.get(key)
+            if v in (None, ""):
+                continue
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                continue
+        return None
+
     def _run(
         self,
         origin_address: str,
+        terminal: Optional[str] = "T1",  # ← 이 줄 추가
         departure_time: Optional[str] = None,
     ) -> Dict[str, Any]:
-        if not TMAP_API_KEY:
-            # 키 없으면 더미 값 리턴 (테스트용)
+
+        api_key = os.getenv("TMAP_API_KEY")
+        # 0) API 키 체크
+        if not api_key:
             return {
-                "status": "mock",
-                "message": "TMAP_API_KEY 미설정 – 더미 응답",
-                "eta_minutes": 70,
-                "distance_km": 62,
-                "traffic_summary": "경부고속도로·서울외곽순환 일부 정체, 전체적으로 보통 수준.",
+                "status": "error",
+                "message": "TMAP_API_KEY가 설정되어 있지 않습니다. .env에 TMAP_API_KEY를 설정해 주세요.",
             }
 
+        terminal = (terminal or "T1").upper()
+
+        # 출발지 주소 정리
+        origin_norm = self._normalize_address(origin_address)
+
+        # departure_time은 현재는 경로 API에 직접 반영되진 않지만,
+        # 형식 검증 정도는 해 둘 수 있음 (에러 내기보다는 참고용으로만 쓴다).
+        departure_str = departure_time
+        parsed_departure: Optional[datetime] = None
+        if departure_time:
+            try:
+                # "YYYY-MM-DD HH:MM" 형식 가정
+                departure_time = departure_time.strip()
+                parsed_departure = datetime.strptime(departure_time, "%Y-%m-%d %H:%M")
+                # 한국 기준 타임존 부여 (Tmap은 출발시각 파라미터를 별도로 받지 않아서
+                # 현재는 로직/로그 용으로만 사용)
+                parsed_departure = parsed_departure.replace(tzinfo=ZoneInfo("Asia/Seoul"))
+            except Exception:
+                # 형식이 이상해도 굳이 에러 내진 않고, 그냥 무시하고 진행
+                parsed_departure = None
+
         try:
-            # 1) 출발지 주소 → 좌표 (POI 검색 or 지오코딩)
+            # 1) 출발지 주소 → 좌표 (fullAddrGeo)
             geo_url = "https://apis.openapi.sk.com/tmap/geo/fullAddrGeo"
-            geo_headers = {"appKey": TMAP_API_KEY}
-            geo_params = {"fullAddr": origin_address}
+            geo_headers = {"appKey": api_key}
+            geo_params = {"fullAddr": origin_norm}
             geo_resp = requests.get(geo_url, headers=geo_headers, params=geo_params, timeout=5)
             geo_resp.raise_for_status()
             geo_data = geo_resp.json()
 
-            # 아주 단순하게 첫 결과만 사용 (실제에선 예외 처리 필요)
-            coord_info = geo_data["coordinateInfo"]["coordinate"][0]
-            startX = float(coord_info["newLon"])
-            startY = float(coord_info["newLat"])
+            # coordinateInfo 구조에서 첫 번째 좌표 사용
+            coord_list = (
+                geo_data.get("coordinateInfo", {})
+                .get("coordinate", [])
+            )
+            if not coord_list:
+                return {
+                    "status": "error",
+                    "message": f"지오코딩 결과가 없습니다: {origin_norm}",
+                    "raw_geo": geo_data,
+                }
 
-            # 인천공항 좌표는 하드코딩(간단 버전) — 필요시 따로 geocode 가능
-            endX = 126.4505
-            endY = 37.4602
+            coord_info = coord_list[0]
 
-            # 2) 자동차 경로 안내 호출 (POST)
-            route_url = "https://apis.openapi.sk.com/tmap/routes?version=1&format=json"
+            # newLon/newLat → 없거나 ''이면 lon/lat도 시도
+            startX = self._safe_float(coord_info, "newLon", "lon")
+            startY = self._safe_float(coord_info, "newLat", "lat")
+
+            if startX is None or startY is None:
+                return {
+                    "status": "error",
+                    "message": f"좌표 파싱 실패(newLon/newLat, lon/lat 모두 사용 불가): {coord_info}",
+                    "raw_geo": geo_data,
+                }
+
+            # 2) 인천공항 좌표 (WGS84 lon/lat)
+            if terminal == "T2":
+                endX = 126.4524
+                endY = 37.4690
+            else:  # 기본 T1
+                endX = 126.4505
+                endY = 37.4602
+
+            # 3) 자동차 경로 안내 호출 (실시간 교통 반영)
+            #    문서 예시: https://apis.openapi.sk.com/tmap/tmap/routes?version=1
+            #    여기서는 format=json 명시.
+            route_url = "https://apis.openapi.sk.com/tmap/tmap/routes?version=1&format=json"
             route_headers = {
-                "appKey": TMAP_API_KEY,
+                "appKey": api_key,
                 "Content-Type": "application/json"
             }
-            route_body = {
+            route_body: Dict[str, Any] = {
                 "startX": startX,
                 "startY": startY,
                 "endX": endX,
                 "endY": endY,
                 "reqCoordType": "WGS84GEO",
                 "resCoordType": "WGS84GEO",
-                "trafficInfo": "Y",
-                "startName": origin_address,
+                "trafficInfo": "Y",  # ✅ 실시간 교통 반드시 사용
+                "carType": 0,        # 승용차
+                "sort": "index",
+                "detailPosFlag": "2",
+                "endRpFlag": "G",
+                "startName": origin_norm,
                 "endName": "인천국제공항",
             }
+            # totalValue=2를 쓰면 더 간단한 응답을 받을 수 있지만,
+            # 여기서는 전체 경로 정보(traffic 등)를 유지하기 위해 생략.
 
             route_resp = requests.post(route_url, headers=route_headers, json=route_body, timeout=10)
             route_resp.raise_for_status()
             route_data = route_resp.json()
 
-            # 3) 거리/시간 파싱 (Tmap 응답 구조에 맞게 수정 필요)
-            props = route_data["features"][0]["properties"]
-            total_time_sec = props["totalTime"]
-            total_dist_m = props["totalDistance"]
+            features = route_data.get("features", [])
+            if not features:
+                return {
+                    "status": "error",
+                    "message": "자동차 경로안내 응답에 features가 없습니다.",
+                    "raw_route": route_data,
+                }
 
-            eta_minutes = round(total_time_sec / 60)
-            distance_km = round(total_dist_m / 1000, 1)
+            # 4) 거리/시간 파싱
+            # - 문서상 totalDistance/totalTime은 보통 출발지(pointType=S)에 포함되거나
+            #   totalValue=2 사용 시 첫 Feature의 properties에 포함.
+            props_with_total = None
+            for f in features:
+                props = f.get("properties", {})
+                if "totalTime" in props and "totalDistance" in props:
+                    props_with_total = props
+                    break
 
-            traffic_summary = f"예상 소요 {eta_minutes}분, 약 {distance_km}km. 주요 구간 일부 정체."
+            if not props_with_total:
+                # 혹시 totalValue=2 형식을 따로 요청한 경우도 첫 번째 feature에만 값이 있을 수 있음
+                first_props = features[0].get("properties", {})
+                if "totalTime" in first_props and "totalDistance" in first_props:
+                    props_with_total = first_props
 
+            if not props_with_total:
+                return {
+                    "status": "error",
+                    "message": "totalTime/totalDistance 정보를 찾지 못했습니다.",
+                    "raw_route": route_data,
+                }
+
+            total_time_sec = props_with_total.get("totalTime")
+            total_dist_m = props_with_total.get("totalDistance")
+
+            if total_time_sec is None or total_dist_m is None:
+                return {
+                    "status": "error",
+                    "message": f"totalTime/totalDistance가 None입니다: {props_with_total}",
+                    "raw_route": route_data,
+                }
+
+            eta_minutes = round(float(total_time_sec) / 60)
+            distance_km = round(float(total_dist_m) / 1000, 1)
+
+            if parsed_departure:
+                human_time = parsed_departure.strftime("%Y-%m-%d %H:%M")
+                traffic_summary = (
+                    f"{human_time} 기준, 실시간 교통을 반영한 예상 소요 시간은 약 {eta_minutes}분, "
+                    f"이동 거리는 약 {distance_km}km입니다."
+                )
+            else:
+                traffic_summary = (
+                    f"현재 시각 기준, 실시간 교통을 반영한 예상 소요 시간은 약 {eta_minutes}분, "
+                    f"이동 거리는 약 {distance_km}km입니다."
+                )
+
+            # 필요하면 departure_time/현재 시각을 반영한 부가 설명도 붙일 수 있음
             return {
                 "status": "ok",
                 "eta_minutes": eta_minutes,
                 "distance_km": distance_km,
                 "traffic_summary": traffic_summary,
-                "raw": route_data,
+                "query": {
+                    "origin": origin_norm,
+                    "departure_time": departure_str,
+                },
+                "raw": route_data,  # 디버깅용 원본 응답
             }
 
+        except requests.HTTPError as e:
+            # HTTP 에러 (4xx/5xx)
+            return {
+                "status": "error",
+                "message": f"Tmap HTTP 오류: {e}",
+            }
         except Exception as e:
+            # 그 외 모든 에러
             return {
                 "status": "error",
                 "message": f"Tmap API 호출 실패: {e}",

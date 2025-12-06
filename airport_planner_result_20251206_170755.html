@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>인천공항 출국 플래너 결과</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #020617;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.15);
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border-subtle: #1f2937;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%, #000000 100%);
+      margin: 0;
+      padding: 24px;
+      color: var(--text-main);
+    }
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: 24px;
+      letter-spacing: 0.02em;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(15,23,42,0.8);
+    }
+    .meta-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr);
+      gap: 16px;
+      align-items: flex-start;
+    }
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .card {
+      background: linear-gradient(135deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(31,41,55,0.9);
+      box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title span.icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+    }
+    .card-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(75,85,99,0.8);
+      color: var(--text-muted);
+    }
+    details {
+      margin-top: 6px;
+      font-size: 12px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 12px;
+      color: var(--accent);
+    }
+    .field-grid {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      row-gap: 4px;
+      column-gap: 8px;
+      font-size: 13px;
+    }
+    .field-label {
+      color: var(--text-muted);
+    }
+    .field-value {
+      font-weight: 500;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      background: rgba(15,118,110,0.15);
+      border: 1px solid rgba(34,197,94,0.4);
+      color: #bbf7d0;
+      margin-right: 6px;
+    }
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+      padding-left: 4px;
+      border-left: 2px solid rgba(55,65,81,0.8);
+    }
+    .tl-item {
+      position: relative;
+      padding-left: 14px;
+    }
+    .tl-item::before {
+      content: "";
+      position: absolute;
+      left: -6px;
+      top: 3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+    .tl-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .tl-text {
+      font-size: 13px;
+    }
+    .rank-list {
+      font-size: 13px;
+      padding-left: 4px;
+    }
+    .rank-item {
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>인천공항 출국 플래너 결과</h1>
+    <div class="subtitle">멀티 에이전트 &amp; MCP 기반 ICN 출국 동선 플래너</div>
+    <div class="meta-bar">
+      <div class="meta-chip">
+        <span class="meta-dot"></span>
+        생성 시각: 2025-12-06 17:07:55
+      </div>
+      <div class="meta-chip">
+        ✈️  사용자 입력 &amp; 에이전트 결과 요약
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <!-- 1. 사용자 입력 요약 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">1</span>
+              사용자 입력 요약
+            </div>
+            <div class="card-tag">콘솔 입력</div>
+          </div>
+          <div class="field-grid">
+            <div class="field-label">출발지</div>
+            <div class="field-value">서울</div>
+            <div class="field-label">도착지</div>
+            <div class="field-value">바르셀로나</div>
+            <div class="field-label">출발일</div>
+            <div class="field-value">2025-12-08</div>
+            <div class="field-label">귀국일</div>
+            <div class="field-value">2025-12-25</div>
+            <div class="field-label">인원</div>
+            <div class="field-value">성인 2 · 어린이 1 · 유아 1</div>
+            <div class="field-label">출발 주소</div>
+            <div class="field-value">서울시 서대문구 연희동</div>
+            <div class="field-label">이동 수단</div>
+            <div class="field-value">자가용 우선</div>
+            <div class="field-label">이메일</div>
+            <div class="field-value">yjkwon017@gmail.com</div>
+          </div>
+          <details>
+            <summary>원본 입력 JSON 보기</summary>
+            <pre>{
+  &quot;trip&quot;: {
+    &quot;from&quot;: &quot;서울&quot;,
+    &quot;to&quot;: &quot;바르셀로나&quot;,
+    &quot;departure_date&quot;: &quot;2025-12-08&quot;,
+    &quot;return_date&quot;: &quot;2025-12-25&quot;
+  },
+  &quot;passengers&quot;: {
+    &quot;adults&quot;: 2,
+    &quot;children&quot;: 1,
+    &quot;infants&quot;: 1
+  },
+  &quot;parking&quot;: {
+    &quot;need_parking&quot;: true,
+    &quot;parking_type&quot;: &quot;장기&quot;,
+    &quot;preferred_terminal&quot;: &quot;T1&quot;
+  },
+  &quot;home_address&quot;: &quot;서울시 서대문구 연희동&quot;,
+  &quot;transport_preference&quot;: &quot;자가용 우선&quot;,
+  &quot;contact&quot;: {
+    &quot;email&quot;: &quot;yjkwon017@gmail.com&quot;
+  }
+}</pre>
+          </details>
+        </div>
+
+        <!-- 2. 사용자 프로필 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">2</span>
+              사용자 프로필 (user_profile_task)
+            </div>
+            <div class="card-tag">LLM 정제 프로필</div>
+          </div>
+          <div class="field-grid">
+            <div class="field-label">출발지</div>
+            <div class="field-value">서울</div>
+            <div class="field-label">도착지</div>
+            <div class="field-value">바르셀로나</div>
+            <div class="field-label">출발일</div>
+            <div class="field-value">2025-12-08</div>
+            <div class="field-label">귀국일</div>
+            <div class="field-value">2025-12-25</div>
+          </div>
+          <details>
+            <summary>원본 JSON 보기</summary>
+            <pre>{
+  &quot;trip&quot;: {
+    &quot;from&quot;: &quot;서울&quot;,
+    &quot;to&quot;: &quot;바르셀로나&quot;,
+    &quot;departure_date&quot;: &quot;2025-12-08&quot;,
+    &quot;return_date&quot;: &quot;2025-12-25&quot;
+  },
+  &quot;passengers&quot;: {
+    &quot;adults&quot;: 2,
+    &quot;children&quot;: 1,
+    &quot;infants&quot;: 1
+  },
+  &quot;parking&quot;: {
+    &quot;need_parking&quot;: true,
+    &quot;parking_type&quot;: &quot;장기&quot;,
+    &quot;preferred_terminal&quot;: &quot;T1&quot;
+  },
+  &quot;home_address&quot;: &quot;서울시 서대문구 연희동&quot;,
+  &quot;transport_preference&quot;: &quot;자가용 우선&quot;
+}</pre>
+          </details>
+        </div>
+
+        <!-- 3. 주차장 추천 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">3</span>
+              주차장 추천 결과 (parking_task)
+            </div>
+            <div class="card-tag">best_parking</div>
+          </div>
+          <div style="font-size:13px; margin-bottom:6px;">
+            고객님의 출국 시점(2025-12-08)을 기준으로 확인한 결과, 제1여객터미널 장기주차장 중 &#x27;T1 P5 예약주차장&#x27;이 32면의 여유 공간이 있어 가장 원활한 주차가 가능합니다. 예약 주차장이므로 사전 예약을 통해 편리하게 이용하실 수 있습니다.
+          </div>
+          <div class="field-grid">
+            <div class="field-label">이름</div>
+            <div class="field-value">제1여객터미널 P5 예약주차장</div>
+            <div class="field-label">코드</div>
+            <div class="field-value">P5</div>
+            <div class="field-label">종류</div>
+            <div class="field-value">예약</div>
+            <div class="field-label">터미널</div>
+            <div class="field-value">T1</div>
+            <div class="field-label">혼잡도</div>
+            <div class="field-value">여유</div>
+          </div>
+          <details>
+            <summary>원본 JSON 보기</summary>
+            <pre>{
+  &quot;summary&quot;: &quot;고객님의 출국 시점(2025-12-08)을 기준으로 확인한 결과, 제1여객터미널 장기주차장 중 &#x27;T1 P5 예약주차장&#x27;이 32면의 여유 공간이 있어 가장 원활한 주차가 가능합니다. 예약 주차장이므로 사전 예약을 통해 편리하게 이용하실 수 있습니다.&quot;,
+  &quot;best_parking&quot;: {
+    &quot;name_ko&quot;: &quot;제1여객터미널 P5 예약주차장&quot;,
+    &quot;code&quot;: &quot;P5&quot;,
+    &quot;type&quot;: &quot;예약&quot;,
+    &quot;terminal&quot;: &quot;T1&quot;,
+    &quot;expected_congestion&quot;: &quot;여유&quot;,
+    &quot;note&quot;: &quot;터미널까지 셔틀버스 이용, 사전 예약 필수&quot;
+  }
+}</pre>
+          </details>
+        </div>
+
+        <!-- 4. 출국장 추천 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">4</span>
+              출국장 추천 결과 (departure_task)
+            </div>
+            <div class="card-tag">best_departure_gate + parking_link</div>
+          </div>
+          <div style="font-size:13px; margin-bottom:6px;">
+            고객님의 제1여객터미널 P5 예약주차장 이용을 고려하여, 셔틀버스 이동 후 가장 한가한 출국장을 추천합니다. 현재 제1여객터미널 6번 출국장 서편 보안검색대(DG6_W)가 예상 대기시간 6분으로 가장 원활하여 추천드립니다. P5 예약주차장에서 셔틀버스를 이용하여 터미널로 이동 후 6번 출국장까지 약 10분 정도 소요될 것으로 예상됩니다.
+          </div>
+          <div class="field-grid">
+            <div class="field-label">터미널</div>
+            <div class="field-value">T1</div>
+            <div class="field-label">출국장</div>
+            <div class="field-value">6번</div>
+            <div class="field-label">보안검색</div>
+            <div class="field-value">일반</div>
+            <div class="field-label">예상 대기</div>
+            <div class="field-value">6 분</div>
+            <div class="field-label">주차장</div>
+            <div class="field-value">제1여객터미널 P5 예약주차장</div>
+            <div class="field-label">도보 시간</div>
+            <div class="field-value">10 분</div>
+          </div>
+          <details>
+            <summary>원본 JSON 보기</summary>
+            <pre>{
+  &quot;summary&quot;: &quot;고객님의 제1여객터미널 P5 예약주차장 이용을 고려하여, 셔틀버스 이동 후 가장 한가한 출국장을 추천합니다. 현재 제1여객터미널 6번 출국장 서편 보안검색대(DG6_W)가 예상 대기시간 6분으로 가장 원활하여 추천드립니다. P5 예약주차장에서 셔틀버스를 이용하여 터미널로 이동 후 6번 출국장까지 약 10분 정도 소요될 것으로 예상됩니다.&quot;,
+  &quot;best_departure_gate&quot;: {
+    &quot;terminal&quot;: &quot;T1&quot;,
+    &quot;gate_id&quot;: &quot;6번&quot;,
+    &quot;security_lane&quot;: &quot;일반&quot;,
+    &quot;estimated_wait_minutes&quot;: 6
+  },
+  &quot;parking_link&quot;: {
+    &quot;parking_name_ko&quot;: &quot;제1여객터미널 P5 예약주차장&quot;,
+    &quot;parking_code&quot;: &quot;P5&quot;,
+    &quot;walking_time_from_parking_minutes&quot;: 10
+  }
+}</pre>
+          </details>
+        </div>
+      </div>
+
+      <div>
+        <!-- 알림 타임라인 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">A</span>
+              출국 알림 타임라인
+            </div>
+            <div class="card-tag">5시간 전 · 2시간 전</div>
+          </div>
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-time">T - 5h 알림 (집 출발 가이드)</div>
+              <div class="tl-text">안녕하세요! 바르셀로나행 KLM 항공편(KL856/KL1677) 출발까지 5시간 남았습니다. 항공편은 2025년 12월 8일 오전 0시 55분 인천공항 제1여객터미널에서 출발합니다.<br>어린이 및 유아 동반하시는 점을 고려하여, 여유로운 출국 절차를 위해 늦어도 오후 10시 25분까지는 공항에 도착하시는 것을 권장합니다. 자택(서울시 서대문구 연희동)에서 인천공항 제1여객터미널까지는 자가용으로 약 70분 정도 소요될 것으로 예상되며, 현재 시각 기준 교통량은 점차 줄어들어 이동이 원활할 것으로 보입니다.<br>따라서, **오늘 오후 9시 15분**에 집에서 출발하시는 것을 추천드립니다. 주차는 미리 예약하신 **제1여객터미널 P5 예약주차장**을 이용하시고, 터미널까지는 셔틀버스를 이용해 이동하시면 됩니다. 안전하고 편안한 여행의 시작 되시길 바랍니다!</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">T - 2h 알림 (공항 내 동선 가이드)</div>
+              <div class="tl-text">안녕하세요! 바르셀로나행 KLM 항공편(KL856/KL1677) 출발까지 2시간 남았습니다. 현재 공항에 도착하셨거나 이동 중이실 것으로 예상됩니다.<br>항공편은 제1여객터미널에서 출발하며, 예약하신 **P5 예약주차장**에 주차 후 셔틀버스를 이용해 터미널로 오셨다면, **제1여객터미널 6번 출국장 서편(일반 보안검색대)**을 이용하시면 됩니다. 예상 대기시간은 **약 6분**으로 가장 원활하게 출국 절차를 진행하실 수 있습니다. P5 주차장에서 셔틀버스와 터미널 내 이동 시간을 포함하여 출국장까지 약 10분 정도 소요될 것으로 예상됩니다.<br>혹시 아직 출발 전이시라면, 현재 시각 자택(서울시 서대문구 연희동)에서 공항까지 교통 상황은 매우 원활할 것으로 예상되오니 참고 바랍니다. 모든 출국 절차를 순조롭게 마치시고 즐거운 여행 되시길 바랍니다!</div>
+            </div>
+          </div>
+          <details>
+            <summary>알림 원문 전체 보기</summary>
+            <pre>&quot;### 5시간 전 알림\n안녕하세요! 바르셀로나행 KLM 항공편(KL856/KL1677) 출발까지 5시간 남았습니다. 항공편은 2025년 12월 8일 오전 0시 55분 인천공항 제1여객터미널에서 출발합니다.\n어린이 및 유아 동반하시는 점을 고려하여, 여유로운 출국 절차를 위해 늦어도 오후 10시 25분까지는 공항에 도착하시는 것을 권장합니다. 자택(서울시 서대문구 연희동)에서 인천공항 제1여객터미널까지는 자가용으로 약 70분 정도 소요될 것으로 예상되며, 현재 시각 기준 교통량은 점차 줄어들어 이동이 원활할 것으로 보입니다.\n따라서, **오늘 오후 9시 15분**에 집에서 출발하시는 것을 추천드립니다. 주차는 미리 예약하신 **제1여객터미널 P5 예약주차장**을 이용하시고, 터미널까지는 셔틀버스를 이용해 이동하시면 됩니다. 안전하고 편안한 여행의 시작 되시길 바랍니다!\n\n### 2시간 전 알림\n안녕하세요! 바르셀로나행 KLM 항공편(KL856/KL1677) 출발까지 2시간 남았습니다. 현재 공항에 도착하셨거나 이동 중이실 것으로 예상됩니다.\n항공편은 제1여객터미널에서 출발하며, 예약하신 **P5 예약주차장**에 주차 후 셔틀버스를 이용해 터미널로 오셨다면, **제1여객터미널 6번 출국장 서편(일반 보안검색대)**을 이용하시면 됩니다. 예상 대기시간은 **약 6분**으로 가장 원활하게 출국 절차를 진행하실 수 있습니다. P5 주차장에서 셔틀버스와 터미널 내 이동 시간을 포함하여 출국장까지 약 10분 정도 소요될 것으로 예상됩니다.\n혹시 아직 출발 전이시라면, 현재 시각 자택(서울시 서대문구 연희동)에서 공항까지 교통 상황은 매우 원활할 것으로 예상되오니 참고 바랍니다. 모든 출국 절차를 순조롭게 마치시고 즐거운 여행 되시길 바랍니다!&quot;</pre>
+          </details>
+        </div>
+
+        <!-- 항공편 추천 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">5</span>
+              항공편 추천 결과 (flight_task)
+            </div>
+            <div class="card-tag">best_flights</div>
+          </div>
+          <div class="rank-list">
+
+            <div class="rank-item">
+              <strong>1위.</strong> KLM KL856/KL1677 (경유)<br>
+              &nbsp;&nbsp;출발: ICN 2025-12-08T00:55:00+09:00<br>
+              &nbsp;&nbsp;도착: BCN 2025-12-08T18:30:00+01:00<br>
+              &nbsp;&nbsp;예상 요금: 737800
+            </div>
+
+            <div class="rank-item">
+              <strong>2위.</strong> Turkish Airlines TK91/TK1855 (경유)<br>
+              &nbsp;&nbsp;출발: ICN 2025-12-08T23:45:00+09:00<br>
+              &nbsp;&nbsp;도착: BCN 2025-12-09T12:00:00+01:00<br>
+              &nbsp;&nbsp;예상 요금: 767100
+            </div>
+
+            <div class="rank-item">
+              <strong>3위.</strong> Lufthansa LH713/LH1130 (경유)<br>
+              &nbsp;&nbsp;출발: ICN 2025-12-08T11:20:00+09:00<br>
+              &nbsp;&nbsp;도착: BCN 2025-12-08T19:35:00+01:00<br>
+              &nbsp;&nbsp;예상 요금: 776100
+            </div>
+
+          </div>
+          <details>
+            <summary>원본 JSON 보기</summary>
+            <pre>{
+  &quot;selection_reason&quot;: &quot;제공된 항공편들은 서울에서 바르셀로나까지의 여정을 위한 최저가 옵션들을 선별한 것입니다. 경유 횟수와 총 소요 시간을 고려하여 가격 대비 효율적인 선택지를 추천하며, 다양한 항공사와 경유지를 통해 유연한 일정을 제공합니다.&quot;,
+  &quot;best_flights&quot;: [
+    {
+      &quot;airline&quot;: &quot;KLM&quot;,
+      &quot;flight_number&quot;: &quot;KL856/KL1677&quot;,
+      &quot;is_nonstop&quot;: false,
+      &quot;departure_airport&quot;: &quot;ICN&quot;,
+      &quot;arrival_airport&quot;: &quot;BCN&quot;,
+      &quot;departure_time_local&quot;: &quot;2025-12-08T00:55:00+09:00&quot;,
+      &quot;arrival_time_local&quot;: &quot;2025-12-08T18:30:00+01:00&quot;,
+      &quot;duration_minutes&quot;: 1355,
+      &quot;price_total&quot;: 737800,
+      &quot;cabin&quot;: &quot;ECONOMY&quot;
+    },
+    {
+      &quot;airline&quot;: &quot;Turkish Airlines&quot;,
+      &quot;flight_number&quot;: &quot;TK91/TK1855&quot;,
+      &quot;is_nonstop&quot;: false,
+      &quot;departure_airport&quot;: &quot;ICN&quot;,
+      &quot;arrival_airport&quot;: &quot;BCN&quot;,
+      &quot;departure_time_local&quot;: &quot;2025-12-08T23:45:00+09:00&quot;,
+      &quot;arrival_time_local&quot;: &quot;2025-12-09T12:00:00+01:00&quot;,
+      &quot;duration_minutes&quot;: 1755,
+      &quot;price_total&quot;: 767100,
+      &quot;cabin&quot;: &quot;ECONOMY&quot;
+    },
+    {
+      &quot;airline&quot;: &quot;Lufthansa&quot;,
+      &quot;flight_number&quot;: &quot;LH713/LH1130&quot;,
+      &quot;is_nonstop&quot;: false,
+      &quot;departure_airport&quot;: &quot;ICN&quot;,
+      &quot;arrival_airport&quot;: &quot;BCN&quot;,
+      &quot;departure_time_local&quot;: &quot;2025-12-08T11:20:00+09:00&quot;,
+      &quot;arrival_time_local&quot;: &quot;2025-12-08T19:35:00+01:00&quot;,
+      &quot;duration_minutes&quot;: 1095,
+      &quot;price_total&quot;: 776100,
+      &quot;cabin&quot;: &quot;ECONOMY&quot;
+    }
+  ]
+}</pre>
+          </details>
+        </div>
+
+        <!-- Crew 최종 출력 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">★</span>
+              Crew 최종 출력
+            </div>
+            <div class="card-tag">LLM 종합 요약</div>
+          </div>
+          <details>
+            <summary>펼쳐보기</summary>
+            <pre>### 5시간 전 알림
+안녕하세요! 바르셀로나행 KLM 항공편(KL856/KL1677) 출발까지 5시간 남았습니다. 항공편은 2025년 12월 8일 오전 0시 55분 인천공항 제1여객터미널에서 출발합니다.
+어린이 및 유아 동반하시는 점을 고려하여, 여유로운 출국 절차를 위해 늦어도 오후 10시 25분까지는 공항에 도착하시는 것을 권장합니다. 자택(서울시 서대문구 연희동)에서 인천공항 제1여객터미널까지는 자가용으로 약 70분 정도 소요될 것으로 예상되며, 현재 시각 기준 교통량은 점차 줄어들어 이동이 원활할 것으로 보입니다.
+따라서, **오늘 오후 9시 15분**에 집에서 출발하시는 것을 추천드립니다. 주차는 미리 예약하신 **제1여객터미널 P5 예약주차장**을 이용하시고, 터미널까지는 셔틀버스를 이용해 이동하시면 됩니다. 안전하고 편안한 여행의 시작 되시길 바랍니다!
+
+### 2시간 전 알림
+안녕하세요! 바르셀로나행 KLM 항공편(KL856/KL1677) 출발까지 2시간 남았습니다. 현재 공항에 도착하셨거나 이동 중이실 것으로 예상됩니다.
+항공편은 제1여객터미널에서 출발하며, 예약하신 **P5 예약주차장**에 주차 후 셔틀버스를 이용해 터미널로 오셨다면, **제1여객터미널 6번 출국장 서편(일반 보안검색대)**을 이용하시면 됩니다. 예상 대기시간은 **약 6분**으로 가장 원활하게 출국 절차를 진행하실 수 있습니다. P5 주차장에서 셔틀버스와 터미널 내 이동 시간을 포함하여 출국장까지 약 10분 정도 소요될 것으로 예상됩니다.
+혹시 아직 출발 전이시라면, 현재 시각 자택(서울시 서대문구 연희동)에서 공항까지 교통 상황은 매우 원활할 것으로 예상되오니 참고 바랍니다. 모든 출국 절차를 순조롭게 마치시고 즐거운 여행 되시길 바랍니다!</pre>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

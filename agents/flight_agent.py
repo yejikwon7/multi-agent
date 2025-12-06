@@ -20,7 +20,8 @@ def create_flight_agent(flight_tools):
             "항공사별 운항 스케줄, 가격, 경유 정보를 분석하여 최적 항공편을 제안한다."
         ),
         llm=worker_llm,
-        tools=[],
+        tools=flight_tools,
         verbose=True,
         allow_delegation=False,
+        memory=True,
     )
